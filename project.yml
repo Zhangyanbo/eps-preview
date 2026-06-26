@@ -1,0 +1,119 @@
+name: EPSPreview
+
+options:
+  bundleIdPrefix: com.zhangyanbo
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+# Settings shared by every target.
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    # We hand-maintain every Info.plist and .entitlements file; never let
+    # Xcode/XcodeGen synthesize or overwrite them.
+    GENERATE_INFOPLIST_FILE: NO
+    CODE_SIGN_STYLE: Manual
+    # Ad-hoc signing — no Apple Developer Program account required. The
+    # final, authoritative signing (with the right entitlements per target)
+    # is done by scripts/build.sh after xcodebuild.
+    CODE_SIGN_IDENTITY: "-"
+    DEVELOPMENT_TEAM: ""
+    PROVISIONING_PROFILE_SPECIFIER: ""
+    ENABLE_HARDENED_RUNTIME: NO
+    DEAD_CODE_STRIPPING: YES
+
+targets:
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Host application. Ships the extensions + render service and shows a
+  # one-screen "installed" window.
+  #
+  # NOTE: we intentionally do NOT use XcodeGen's `info:` / `entitlements:`
+  # keys — those make XcodeGen *generate* (and overwrite) the files. We
+  # only point the build settings at our hand-written files instead.
+  # ──────────────────────────────────────────────────────────────────────
+  EPSPreview:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/Host
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.zhangyanbo.EPSPreview
+        PRODUCT_NAME: EPSPreview
+        INFOPLIST_FILE: Sources/Host/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Sources/Host/Host.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: ""
+    dependencies:
+      - target: EPSQuickLook
+      - target: EPSThumbnail
+      - target: RenderService
+        embed: true
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Quick Look preview extension (spacebar preview). Sandboxed, which macOS
+  # 15/26 require for it to be registered at all.
+  # ──────────────────────────────────────────────────────────────────────
+  EPSQuickLook:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: Sources/QuickLook
+      - path: Sources/Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.zhangyanbo.EPSPreview.QuickLook
+        PRODUCT_NAME: EPSQuickLook
+        INFOPLIST_FILE: Sources/QuickLook/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Sources/QuickLook/QuickLook.entitlements
+        WRAPPER_EXTENSION: appex
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Finder / Spotlight thumbnail extension. Same sandbox requirement.
+  # ──────────────────────────────────────────────────────────────────────
+  EPSThumbnail:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: Sources/Thumbnail
+      - path: Sources/Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.zhangyanbo.EPSPreview.Thumbnail
+        PRODUCT_NAME: EPSThumbnail
+        INFOPLIST_FILE: Sources/Thumbnail/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Sources/Thumbnail/Thumbnail.entitlements
+        WRAPPER_EXTENSION: appex
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Render XPC service. NOT sandboxed — this is what lets it spawn the
+  # system Ghostscript freely. A copy is embedded into each extension's
+  # Contents/XPCServices by scripts/build.sh.
+  # ──────────────────────────────────────────────────────────────────────
+  RenderService:
+    type: xpc-service
+    platform: macOS
+    sources:
+      - path: Sources/RenderService
+      - path: Sources/Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.zhangyanbo.EPSPreview.RenderService
+        PRODUCT_NAME: RenderService
+        INFOPLIST_FILE: Sources/RenderService/Info.plist
+
+schemes:
+  EPSPreview:
+    build:
+      targets:
+        EPSPreview: all
+        EPSQuickLook: all
+        EPSThumbnail: all
+        RenderService: all
+    run:
+      config: Release
+    archive:
+      config: Release

@@ -1,0 +1,14 @@
+# Build output
+build/
+DerivedData/
+out/
+dist/
+
+# Generated Xcode project (regenerated from project.yml by scripts/build.sh)
+*.xcodeproj
+
+# macOS
+.DS_Store
+
+# Misc
+*.dmg
