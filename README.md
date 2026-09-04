@@ -66,6 +66,12 @@ A source build is **not** self-contained: it calls your Homebrew `gs` at
 runtime (keeping the build MIT all the way down). To produce a self-contained,
 shareable `.dmg` like the release, run `bash scripts/package-release.sh`.
 
+`package-release.sh` bundles a *pinned* Ghostscript version
+(`EXPECTED_GHOSTSCRIPT_VERSION` in `scripts/bundle-ghostscript.sh`). If your
+Homebrew has a different version the build stops on purpose; review the
+changelog/CVEs and bump the pin, or re-run with
+`ALLOW_GHOSTSCRIPT_VERSION_MISMATCH=1` to bundle anyway (not recommended).
+
 > Why "Open Anyway"? Removing that one-time prompt entirely requires an Apple
 > Developer Program membership ($99/yr) to notarize the app. The project is
 > otherwise free and needs no account to build, sign, or run.

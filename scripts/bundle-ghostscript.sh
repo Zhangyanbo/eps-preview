@@ -21,7 +21,18 @@ EXPECTED_GHOSTSCRIPT_VERSION="10.07.1"
 OUT="${1:?usage: bundle-ghostscript.sh <output-dir>}"
 
 command -v brew >/dev/null 2>&1 || { echo "error: Homebrew is required to source Ghostscript."; exit 1; }
-brew list ghostscript >/dev/null 2>&1 || brew install ghostscript
+if ! brew list ghostscript >/dev/null 2>&1; then
+  AVAILABLE_VERSION="$(brew info --json=v2 ghostscript 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin)["formulae"][0]["versions"]["stable"])' 2>/dev/null || echo unknown)"
+  if [ "$AVAILABLE_VERSION" != "$EXPECTED_GHOSTSCRIPT_VERSION" ] && [ "${ALLOW_GHOSTSCRIPT_VERSION_MISMATCH:-0}" != "1" ]; then
+    echo "error: Homebrew would install Ghostscript $AVAILABLE_VERSION, this script is pinned to $EXPECTED_GHOSTSCRIPT_VERSION."
+    echo "       Review the Ghostscript changelog/CVEs for the new version, then either:"
+    echo "         - update EXPECTED_GHOSTSCRIPT_VERSION in this script to $AVAILABLE_VERSION, or"
+    echo "         - pin Homebrew to the expected version."
+    echo "       To install anyway (not recommended), re-run with ALLOW_GHOSTSCRIPT_VERSION_MISMATCH=1."
+    exit 1
+  fi
+  brew install ghostscript
+fi
 
 realpath_py() { python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$1"; }
 GS_BIN="$(realpath_py "$(brew --prefix ghostscript)/bin/gs")"
@@ -109,7 +120,11 @@ codesign --force --sign - "$OUT/converter" 2>/dev/null || true
 echo "→ recording provenance…"
 {
   echo "version=$INSTALLED_VERSION"
-  echo "sha256=$(shasum -a 256 "$OUT/converter" | awk '{print $1}')"
+  echo "converter_sha256=$(shasum -a 256 "$OUT/converter" | awk '{print $1}')"
+  for dy in "$OUT"/lib/*.dylib; do
+    [ -f "$dy" ] || continue
+    echo "lib_sha256=$(basename "$dy") $(shasum -a 256 "$dy" | awk '{print $1}')"
+  done
   echo "bundled_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 } > "$OUT/GHOSTSCRIPT_PROVENANCE.txt"
 
