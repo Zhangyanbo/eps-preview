@@ -34,6 +34,13 @@ Ghostscript is **not bundled** — EPS Preview uses the copy you install via
 Homebrew. That keeps this project small and MIT-licensed, and always uses an
 up-to-date `gs`.
 
+The `RenderService` only accepts XPC connections from processes whose code
+signature is intact and whose executable lives inside the *same*
+`EPSPreview.app` bundle, so an unrelated local process cannot use it to run
+Ghostscript. This makes the ad-hoc signing step in `scripts/build.sh`
+load-bearing: build via `bash scripts/build.sh`, not a bare `xcodebuild`, or
+previews will fail with "Render service connection failed".
+
 ## Install
 
 ### Option A — Download (recommended, nothing to build)

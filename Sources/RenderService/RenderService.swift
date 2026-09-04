@@ -106,12 +106,10 @@ final class RenderService: NSObject, RenderProtocol {
 
     /// Looks for a self-contained Ghostscript at `<HostApp>.app/Contents/Helpers/gs/`.
     private static func bundledGhostscript() -> Ghostscript? {
-        // Walk up from this XPC service's bundle to the enclosing .app.
-        var url = Bundle.main.bundleURL
-        while url.path != "/" && !url.path.hasSuffix(".app") {
-            url = url.deletingLastPathComponent()
+        guard let appPath = BundleLayout.enclosingAppBundlePath(for: Bundle.main.bundleURL) else {
+            return nil
         }
-        guard url.path.hasSuffix(".app") else { return nil }
+        let url = URL(fileURLWithPath: appPath)
 
         let binary = url.appendingPathComponent("Contents/Helpers/gs/converter")
         guard FileManager.default.isExecutableFile(atPath: binary.path) else { return nil }

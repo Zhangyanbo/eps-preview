@@ -1,12 +1,17 @@
 import Foundation
+import os
 import Security
 
 /// XPC service entry point. `NSXPCListener.service()` runs the service event
 /// loop and never returns.
 final class ServiceDelegate: NSObject, NSXPCListenerDelegate {
+    private static let log = Logger(subsystem: "com.zhangyanbo.EPSPreview.RenderService",
+                                     category: "xpc")
+
     func listener(_ listener: NSXPCListener,
                   shouldAcceptNewConnection newConnection: NSXPCConnection) -> Bool {
         guard Self.isTrustedPeer(pid: newConnection.processIdentifier) else {
+            Self.log.error("Rejected XPC connection from untrusted peer pid \(newConnection.processIdentifier, privacy: .public)")
             return false
         }
         newConnection.exportedInterface = NSXPCInterface(with: RenderProtocol.self)
@@ -26,7 +31,7 @@ final class ServiceDelegate: NSObject, NSXPCListenerDelegate {
     /// unrelated local process that merely guessed the mach service name,
     /// which is the actual gap this closes.
     private static func isTrustedPeer(pid: pid_t) -> Bool {
-        guard let ownAppRoot = enclosingAppBundlePath(for: Bundle.main.bundleURL) else {
+        guard let ownAppRoot = BundleLayout.enclosingAppBundlePath(for: Bundle.main.bundleURL) else {
             return false
         }
 
@@ -50,20 +55,10 @@ final class ServiceDelegate: NSObject, NSXPCListenerDelegate {
               let peerPath = pathRef as URL? else {
             return false
         }
-        guard let peerAppRoot = enclosingAppBundlePath(for: peerPath) else {
+        guard let peerAppRoot = BundleLayout.enclosingAppBundlePath(for: peerPath) else {
             return false
         }
         return peerAppRoot == ownAppRoot
-    }
-
-    /// Walks up from `url` to the nearest enclosing `.app` bundle root.
-    private static func enclosingAppBundlePath(for url: URL) -> String? {
-        var current = url
-        while current.path != "/" {
-            if current.pathExtension == "app" { return current.path }
-            current.deleteLastPathComponent()
-        }
-        return nil
     }
 }
 
