@@ -11,6 +11,13 @@
 # see NOTICE.md.
 set -euo pipefail
 
+# Pinned Ghostscript release. `brew install ghostscript` always tracks
+# whatever Homebrew currently has on tap, which silently changes the exact
+# interpreter binary — and its CVE exposure — shipped in every future build.
+# Bump this deliberately (after checking the Ghostscript changelog/CVEs) when
+# upgrading, rather than picking up new versions unreviewed.
+EXPECTED_GHOSTSCRIPT_VERSION="10.07.1"
+
 OUT="${1:?usage: bundle-ghostscript.sh <output-dir>}"
 
 command -v brew >/dev/null 2>&1 || { echo "error: Homebrew is required to source Ghostscript."; exit 1; }
@@ -20,6 +27,19 @@ realpath_py() { python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))'
 GS_BIN="$(realpath_py "$(brew --prefix ghostscript)/bin/gs")"
 PREFIX="$(brew --prefix)"
 [ -x "$GS_BIN" ] || { echo "error: gs not found at $GS_BIN"; exit 1; }
+
+INSTALLED_VERSION="$("$GS_BIN" --version)"
+if [ "$INSTALLED_VERSION" != "$EXPECTED_GHOSTSCRIPT_VERSION" ]; then
+  if [ "${ALLOW_GHOSTSCRIPT_VERSION_MISMATCH:-0}" != "1" ]; then
+    echo "error: Homebrew has Ghostscript $INSTALLED_VERSION, this script is pinned to $EXPECTED_GHOSTSCRIPT_VERSION."
+    echo "       Review the Ghostscript changelog/CVEs for the new version, then either:"
+    echo "         - update EXPECTED_GHOSTSCRIPT_VERSION in this script to $INSTALLED_VERSION, or"
+    echo "         - pin Homebrew to the expected version."
+    echo "       To bundle anyway (not recommended), re-run with ALLOW_GHOSTSCRIPT_VERSION_MISMATCH=1."
+    exit 1
+  fi
+  echo "warning: bundling unpinned Ghostscript $INSTALLED_VERSION (expected $EXPECTED_GHOSTSCRIPT_VERSION)"
+fi
 
 rm -rf "$OUT"; mkdir -p "$OUT/lib"
 cp -f "$GS_BIN" "$OUT/converter"; chmod u+w "$OUT/converter"
@@ -85,5 +105,12 @@ cp -R "$GSSHARE/lib"      "$OUT/share/" 2>/dev/null || true
 echo "→ ad-hoc signing…"
 for dy in "$OUT"/lib/*.dylib; do codesign --force --sign - "$dy" 2>/dev/null || true; done
 codesign --force --sign - "$OUT/converter" 2>/dev/null || true
+
+echo "→ recording provenance…"
+{
+  echo "version=$INSTALLED_VERSION"
+  echo "sha256=$(shasum -a 256 "$OUT/converter" | awk '{print $1}')"
+  echo "bundled_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+} > "$OUT/GHOSTSCRIPT_PROVENANCE.txt"
 
 echo "✓ self-contained Ghostscript at $OUT ($(du -sh "$OUT" | cut -f1))"
