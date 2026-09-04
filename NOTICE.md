@@ -11,8 +11,11 @@ License v3.0 (AGPL-3.0)**.
 
 - Ghostscript home page: https://www.ghostscript.com/
 - Source code: https://github.com/ArtifexSoftware/ghostpdl-downloads
-  (the exact build bundled here is the one distributed by Homebrew:
-  `brew install ghostscript`).
+  (releases bundle a pinned Ghostscript version — see
+  `EXPECTED_GHOSTSCRIPT_VERSION` in `scripts/bundle-ghostscript.sh`, and the
+  `GHOSTSCRIPT_PROVENANCE.txt` shipped inside the app bundle, for the exact
+  version and hash of the build you have; it is sourced from Homebrew's
+  `ghostscript` formula for that version).
 
 When you **build from source** (`scripts/build.sh`) instead of using a
 release, Ghostscript is **not** bundled — the app calls the copy you install

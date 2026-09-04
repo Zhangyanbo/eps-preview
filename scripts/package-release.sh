@@ -30,6 +30,9 @@ mkdir -p "$APP/Contents/Helpers/gs" "$APP/Contents/Resources/ghostscript"
 cp -f "$GSTMP/converter" "$APP/Contents/Helpers/gs/converter"
 cp -R "$GSTMP/lib" "$APP/Contents/Helpers/gs/lib"
 cp -R "$GSTMP/share/." "$APP/Contents/Resources/ghostscript/"
+# Carry the provenance record (gs version + binary hashes) into the shipped
+# app, before the re-seal below so it is covered by the signature.
+cp -f "$GSTMP/GHOSTSCRIPT_PROVENANCE.txt" "$APP/Contents/Resources/ghostscript/GHOSTSCRIPT_PROVENANCE.txt"
 rm -rf "$(dirname "$GSTMP")"
 
 echo
